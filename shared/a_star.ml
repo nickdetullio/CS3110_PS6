@@ -75,4 +75,4 @@ let tails = [(2,2); (1,2); (0,2); (3,2)]
 
 let () =
   let path = a_star src dst tails manhattan in
-  print_endline (str_tup_lst path)
+  print_endline path
