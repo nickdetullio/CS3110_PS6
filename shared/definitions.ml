@@ -36,7 +36,7 @@ type action = ChangeOrientation of int * orientation
 (* Graphic Updates *)
 type update = InitGraphics 
 			| UpdateInventory of color * team_items_data
-            | UpdateRider of int * orientation * tile
+      | UpdateRider of int * orientation * tile
 			| ModifyRider of int * modifier * bool
 			| PlaceItem of item * tile
 			| PlaceRider of int * tile * color
@@ -56,14 +56,14 @@ type control = GameStart
 (* type for clients to request information *)
 type status = TeamItemsStatus of color 
             | FieldItemsStatus 
-			| TeamStatus of color
-			| TailStatus
+			      | TeamStatus of color
+			      | TailStatus
             | GameStatus
 
 type data = TeamItemsData of team_items_data
 		      | FieldItemsData of field_items_data
 		      | TeamData of team_data
-			  | TailData of tile list
+			    | TailData of tile list
 		      | GameData of game_data
 
 type command = Control of control 
