@@ -166,6 +166,79 @@ let handleTime g new_time : game_result option =
   let res = check_for_game_over !s new_time in
   (match res with
    | Some c -> ()
-   | None -> failwith "not implemented");
+   | None -> let rec remove_at n = function
+			| [] -> []
+			| h :: t -> if n = 0 then t else h :: remove_at (n-1) t in
+			let find_index ele lst =
+				let rec find new_lst i =
+					if i < List.length new_lst
+						if List.nth i new_lst = ele
+						then i
+						else find new_lst (i+1) in
+					else failwith "Element Not in List"
+				find lst 0 in
+			let move_red_rider ele =   (* Beginning of Point 2 *)
+				let (id, dir, b, (r, c), d) = !ele in
+					match dir with 
+					|Definitions.East -> ele := (id, dir, b, (r, c+1), d) 
+					|Definitions.West -> ele := (id, dir, b, (r, c-1), d)
+					|Definitions.North -> ele := (id, dir, b, (r-1, c), d)
+					|Definitions.South -> ele := (id, dir, b, (r+1, c), d) in
+				State.red_tail := (r,c)::!State.red_tail;
+				let (id, dir, b, new_tile, d) = !ele in
+				Netgraphics.add_update (Definitions.UpdateRider (id, dir, new_tile));
+				Netgraphics.add_update (Definitions.PlaceTail (id, (r,c), Definitions.Red));
+			let move_blue_rider ele = 
+				let (a, dir, b, (r, c), d) = !ele in
+					match dir with 
+					|Definitions.East -> ele := (a, dir, b, (r, c+1), d) 
+					|Definitions.West -> ele := (a, dir, b, (r, c-1), d)
+					|Definitions.North -> ele := (a, dir, b, (r-1, c), d)
+					|Definitions.South -> ele := (a, dir, b, (r+1, c), d) in
+				State.blue_tail := (r,c)::!State.blue_tail;
+				let (id, dir, b, new_tile, d) = !ele in
+				Netgraphics.add_update (Definitions.UpdateRider (id, dir, new_tile));
+				Netgraphics.add_update (Definitions.PlaceTail (id, (r,c), Definitions.Blue));
+			let red_rider_list = 
+				List.fold_left (fun (a, b) -> !b :: acc) [] !State.red_riders in
+			let blue_rider_list = 
+				List.fold_left (fun (a, b) -> !b :: acc) [] !State.blue_riders in
+			for i=0 to ((List.length !State.red_riders) - 1) do
+				move_red_rider (List.nth red_rider_list i) 
+			done;
+			for i=0 to ((List.length !State.blue_riders) - 1) do
+				move_blue_rider (List.nth blue_rider_list i) 
+			done;   (* End of Point 2 *)
+			let remove_red_out_of_bounds ele =  (* Beginning of Point 3 *)
+				let (id, _, _, (r, c), _) = !ele in
+				if (r >= Constants.cNum_Rows) || (r < 0) || 
+				(c >= Constants.cNum_Columns) || (c < 0)
+				then List.remove_assoc id !State.red_riders in
+				Netgraphics.add_update (Definitions.RemoveRider id);
+			let red_check_for_tail ele =
+				let (id, _, item_list, tile, _) = !ele in (*Check to see if an item can actually be
+				deleted from an item_list if it isn't a ref*)
+				if List.mem tile !State.red_tail
+				then if List.mem Definitions.Shield item_list
+						remove_at (find_index tile !State.red_tail) !State.red_tail;
+						remove_at (find_index Definitions.Shield item_list) item_list;
+					 else if List.mem Definitions.Invincibility item_list
+						remove_at (find_index tile !State.red_tail) !State.red_tail;
+					 else List.remove_assoc id !State.red_riders in
+					 Netgraphics.add_update (Definitions.RemoveRider id);
+			let remove_blue_out_of_bounds ele =  
+				let (id, _, _, (r, c), _) = !ele in
+				if (r >= Constants.cNum_Rows) || (r < 0) || 
+				(c >= Constants.cNum_Columns) || (c < 0)
+				then List.remove_assoc id !State.blue_riders in
+				Netgraphics.add_update (Definitions.RemoveRider id);
+			for i=0 to ((List.length !State.red_riders) - 1) do
+				remove_red_out_of_bounds (List.nth red_rider_list i)
+			done;
+			for i=0 to ((List.length !State.blue_riders) - 1) do
+				remove_blue_out_of_bounds (List.nth blue_rider_list i) 
+			done;
+			
+			 
   Mutex.unlock m;
   res

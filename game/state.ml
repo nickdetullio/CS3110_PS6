@@ -13,6 +13,11 @@ let red_items = ref []
 
 let blue_items = ref [] 
 
+(* tail list *)
+let red_tail = ref []
+
+let blue_tail = ref []
+
 (* modifier * tile list *)
 let item_locations = ref []
 
