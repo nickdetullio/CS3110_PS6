@@ -21,6 +21,7 @@ let blue_tail = ref []
 (* modifier * tile list *)
 let item_locations = ref []
 
+(* Stores all riders and places them on the board *)
 let initialize_riders c =
   let init_riders = Constants.cNUM_INITIAL_TEAM_RIDERS in
   let cols = Constants.cNUM_COLUMNS in
