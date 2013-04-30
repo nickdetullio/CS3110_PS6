@@ -1,6 +1,5 @@
 open Definitions
 open Constants
-open Util
 open Netgraphics
 
 (* id * rider ref list *)

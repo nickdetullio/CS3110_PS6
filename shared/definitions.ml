@@ -21,6 +21,7 @@ type rider = {
 type team_items_data = (item * int) list
 type field_items_data = (item * tile) list
 type team_data = rider list * team_items_data
+
 (* red team, blue team *)
 type game_data = team_data * team_data * field_items_data
 
