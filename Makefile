@@ -23,9 +23,10 @@ game:
 	ocamlc -o game/game.exe -I +threads -I shared -I game unix.cma threads.cma \
     str.cma shared/thread_pool.mli shared/thread_pool.ml shared/connection.mli \
     shared/connection.ml shared/constants.ml shared/definitions.ml \
-    shared/util.ml game/netgraphics.mli game/netgraphics.ml game/game.mli \
-    game/game.ml game/server.ml shared/a_star.mli shared/a_star.ml \
-    game/state.ml game/state.mli
+    shared/util.ml game/netgraphics.mli game/netgraphics.ml game/state.mli \
+    game/state.ml game/game.mli game/game.ml game/server.ml \
+    shared/a_star.mli shared/a_star.ml 
+   
 
 .PHONY: team
 team:
@@ -35,7 +36,8 @@ else
 	ocamlc -o team/$(name).exe -I +threads -I game -I shared -I team unix.cma \
     threads.cma str.cma shared/thread_pool.mli shared/thread_pool.ml \
     shared/connection.mli shared/connection.ml shared/constants.ml \
-    shared/definitions.ml shared/util.ml team/team.ml team/$(name).ml 
+    shared/definitions.ml shared/util.ml team/team.ml team/$(name).ml \
+    game/state.ml game/state.mli shared/a_star.mli shared/a_star.ml
 endif
 
 .PHONY: clean
