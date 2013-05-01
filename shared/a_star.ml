@@ -61,12 +61,45 @@ struct
     to_ret
 end
 
-let manhattan src dest = failwith "not implemented"
+let manhattan src dest = 
+		let x_diff = abs((fst src) - (fst dest)) in
+		let y_diff = abs((snd src) - (snd dest)) in
+		x_diff + y_diff
 
-let euclidian src dest = failwith "not implemented"
+let euclidian src dest = sqrt(((fst src)-(fst dest))**2 + ((snd src)-(snd dest))**2)
 
-let a_star ((r1,c1) as source) ((r2,c2) as dest) tail_list heauristic =
-  failwith "not implemented"
+let a_star ((c1,r1) as source) ((c2,r2) as dest) tail_list heauristic =
+  let final_list = ref [] in
+  
+  let rec main_func next_node = 
+	  if  next_node = dest then final_list
+	  else let current = next_node
+	  
+	  let (col, row) = (fst current, snd current) in
+	  let coord_list = [(col+1,row), (col, row+1), (col+1,row+1), 
+	  (col-1, row), (col, row-1), (col-1, row-1), (col+1, row-1), (col-1, row+1)] in
+	  let dist_helper ele = 
+		heuristic ele dest
+	  let dist_list = List.map helper coord_list in
+	  let min_dist_helper lst =
+		let index = ref 0 in 
+		min_dist := List.nth lst 0;
+		for i = 1 to (List.length lst -1) do
+			let curr_coord = List.nth i coord_list in
+			if (List.mem (curr_coord) tail_list = false
+				&& is_valid_tile (curr_coord snd, curr_coord fst) begin then
+				let next_dist = List.nth lst i in
+				if next_dist < !min_dist then !index := i
+			end
+		done;
+	  let coord_index = min_dist_helper dist_list in
+	  final_list := (List.nth coord_list coord_index) :: final_list;
+	  main_func (List.nth coord_list coord_index)
+   main_func source
+  
+  
+  
+  
 
 
 let src = (2,3)
