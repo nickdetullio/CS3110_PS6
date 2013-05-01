@@ -171,399 +171,399 @@ let check_for_game_over s curr_time : game_result option =
     Some (Winner Red)
   else None
   
+let rec remove_at n = function
+	     | [] -> []
+	     | h :: t -> if n = 0 then t else h :: remove_at (n - 1) t 
+     
+let find_index ele lst =
+	let rec find new_lst i =
+		if (i < List.length new_lst) then
+			(if List.nth new_lst i = ele
+			then i
+			else find new_lst (i + 1))
+		else failwith "Element Not in List" in
+	find lst 0 
+  
+let move_red_rider ele =   (* Beginning of Point 2 *)
+	let {id; orientation; modifiers; tile; invincibility_timer} = !ele in
+  let (r, c) = tile in
+  let helper () =
+	  match orientation with 
+	  | East -> ele := {id; orientation; modifiers; 
+        tile = (r, c + 1); invincibility_timer} 
+	  | West -> ele := {id; orientation; modifiers; 
+        tile = (r, c - 1); invincibility_timer}
+	  | North -> ele := {id; orientation; modifiers; 
+        tile = (r - 1, c); invincibility_timer}
+	  | South -> ele := {id; orientation; modifiers; 
+        tile = (r + 1, c); invincibility_timer} in
+  helper ();
+  red_tail := (r,c) :: !red_tail;
+	let {id; orientation; modifiers; tile; invincibility_timer} = !ele in
+	add_update (UpdateRider (id, orientation, tile));
+	add_update (PlaceTail (id, (r,c), Red)) 
+    
+let move_blue_rider ele = 
+	let {id; orientation; modifiers; tile; invincibility_timer} = !ele in
+  let (r, c) = tile in
+  let helper () = 
+    match orientation with 
+	  | East -> ele := {id; orientation; modifiers; 
+        tile = (r, c + 1); invincibility_timer} 
+	  | West -> ele := {id; orientation; modifiers; 
+        tile = (r, c - 1); invincibility_timer}
+	  | North -> ele := {id; orientation; modifiers; 
+        tile = (r - 1, c); invincibility_timer}
+	  | South -> ele := {id; orientation; modifiers; 
+        tile = (r + 1, c); invincibility_timer} in
+  helper ();
+	blue_tail := (r,c) :: !blue_tail;
+	let {id; orientation; modifiers; tile; invincibility_timer} = !ele in
+	add_update (UpdateRider (id, orientation, tile));
+	add_update (PlaceTail (id, (r, c), Blue)) 
+
+let remove_red_out_of_bounds ele =  (* Beginning of Point 3 *)
+	let {id; orientation; modifiers; tile; invincibility_timer} = !ele in
+  let (r, c) = tile in
+	if (r >= cNUM_ROWS) || (r < 0) || (c >= cNUM_COLUMNS) || (c < 0)
+	then red_riders := List.remove_assoc id !red_riders;
+	add_update (RemoveRider id) 
+  
+let remove_blue_out_of_bounds ele =  
+	let {id; orientation; modifiers; tile; invincibility_timer} = !ele in
+  let (r, c) = tile in
+  if (r >= cNUM_ROWS) || (r < 0) || (c >= cNUM_COLUMNS) || (c < 0)
+  then blue_riders := List.remove_assoc id !blue_riders;
+	add_update (RemoveRider id) 
+  
+let blue_check_for_tail ele =
+  let {id; orientation; modifiers; tile; invincibility_timer} = !ele in 
+  (* Check to see if an item can actually be
+  deleted from an item_list if it isn't a ref *)
+  if List.mem tile !red_tail then begin 
+    if List.mem Shielded modifiers then begin
+      blue_tail := remove_at (find_index tile !blue_tail) !blue_tail;
+      add_update (RemoveTail tile);
+      ele := {id; orientation; 
+        modifiers = remove_at (find_index Shielded modifiers) modifiers; 
+        tile; invincibility_timer};
+      add_update (ModifyRider (id, Shielded, false));
+      end
+     else if (List.mem Invincible modifiers) then begin
+      blue_tail := remove_at (find_index tile !blue_tail) !blue_tail;
+      add_update (RemoveTail tile);
+      end
+    else begin
+      blue_riders := List.remove_assoc id !blue_riders;
+      add_update (RemoveRider id);
+      end
+    end
+  else () 
+  
+  let red_check_for_tail ele =
+  let {id; orientation; modifiers; tile; invincibility_timer} = !ele in 
+  (* Check to see if an item can actually be
+  deleted from an item_list if it isn't a ref *)
+  if List.mem tile !red_tail then 
+    begin 
+      if List.mem Shielded modifiers then begin
+        red_tail := remove_at (find_index tile !red_tail) !red_tail;
+        add_update (RemoveTail tile);
+        ele := {id; orientation; 
+          modifiers = remove_at 
+            (find_index Shielded modifiers) modifiers;
+          tile; invincibility_timer};
+        add_update (ModifyRider (id, Shielded, false));
+        end
+       else if (List.mem Invincible modifiers) then begin
+        red_tail := remove_at (find_index tile !red_tail) !red_tail;
+        add_update (RemoveTail tile);
+        end
+      else begin
+        red_riders := List.remove_assoc id !red_riders;
+        add_update (RemoveRider id);
+        end
+    end
+  else ()
+
+let remove_rider rider_list id =
+  rider_list := List.remove_assoc id !rider_list;
+  add_update (RemoveRider id)
+
+let remove_tail tail_list tile =
+  tail_list := List.filter (fun elt -> elt <> tile) !tail_list;
+  add_update (RemoveTail tile)
+  
+let remove_shield rider rider_list = 
+  let {id; orientation; modifiers; tile; invincibility_timer} = rider in
+  rider_list := (id, ref {id; orientation; 
+                 modifiers = List.filter 
+                   (fun elt -> elt <> Shielded) modifiers; 
+                 tile; invincibility_timer})
+                 :: (List.remove_assoc id !rider_list);
+  add_update (ModifyRider (id, Shielded, false))
+    
+let red_check_for_collision ele = 
+  let rider1 = !ele in
+  let {id; orientation; modifiers; tile; invincibility_timer} = rider1 in 
+  let id1 = id in
+  let modifiers1 = modifiers in
+  let tile1 = tile in
+  
+  let blue_rider_list = 
+    List.fold_left (fun acc (a, b) -> !b :: acc) [] !blue_riders in 
+  
+  for i = 0 to (List.length blue_rider_list - 1) do
+    let rider2 = List.nth blue_rider_list i in
+    let {id; orientation; modifiers; tile; invincibility_timer}
+      = rider2 in 
+    let id2 = id in
+    let modifiers2 = modifiers in
+    let tile2 = tile in
+      
+    if tile1 = tile2 then begin
+      
+      if modifiers1 <> [] && modifiers2 <> [] then
+        begin
+          
+          if List.length modifiers1 = 2 || List.length modifiers2 = 2
+          then begin 
+            remove_rider red_riders id1;
+            remove_rider blue_riders id2;
+            end
+            
+          else if List.length modifiers1 = 1 
+            && List.length modifiers2 = 1 then begin
+            if modifiers1 = modifiers2 then begin
+              remove_rider red_riders id1;
+              remove_rider blue_riders id2;
+              if List.mem tile1 !red_tail then begin
+                remove_tail red_tail tile1;
+                end
+              else if List.mem tile2 !blue_tail then begin
+                remove_tail blue_tail tile2;
+                end
+              else ()
+              end
+              
+            else if List.hd modifiers1 = Invincible then
+              begin
+                remove_rider blue_riders id2; 
+                if List.mem tile1 !red_tail then begin
+                  remove_tail red_tail tile1; 
+                  end
+                else if List.mem tile2 !blue_tail then begin
+                  remove_tail blue_tail tile2; 
+                  end
+              end
+              
+            else begin
+              remove_rider red_riders id1; 
+              if List.mem tile1 !red_tail then begin
+                remove_tail red_tail tile1; 
+                end
+              else if List.mem tile2 !blue_tail then begin
+                remove_tail blue_tail tile2; 
+                end
+              end 
+            end
+            
+          else if modifiers1 = [] then begin
+            remove_rider red_riders id1; 
+            if List.mem Shielded modifiers2 then begin
+              if List.mem tile1 !red_tail || 
+                List.mem tile2 !blue_tail then begin
+                remove_rider blue_riders id2;
+                end
+              else begin 
+                remove_shield rider2 blue_riders;
+                end
+              end
+            else ()
+            end
+            
+          else if modifiers2 = [] then begin
+            remove_rider blue_riders id2; 
+            if List.mem Shielded modifiers1 then begin
+              if List.mem tile1 !red_tail || 
+                  List.mem tile2 !blue_tail then begin
+                  remove_rider red_riders id1;
+                  end
+              else begin
+                remove_shield rider1 red_riders;
+                end
+              end
+            else ()
+            end
+            
+          else begin
+            remove_rider red_riders id1; 
+            remove_rider blue_riders id2;
+            end
+          end
+          
+        else ();
+      end  
+      
+  done 
+  
+let blue_check_for_collision ele = 
+  let rider2 = !ele in
+  let {id; orientation; modifiers; tile; invincibility_timer}
+    = rider2 in 
+  let id2 = id in
+  let modifiers2 = modifiers in
+  let tile2 = tile in
+  
+  let red_rider_list = 
+    List.fold_left (fun acc (a, b) -> !b :: acc) [] !red_riders in
+  
+  for i = 0 to (List.length red_rider_list - 1) do
+    let rider1 = List.nth red_rider_list i in
+    let {id; orientation; modifiers; tile; invincibility_timer}
+      = rider1 in 
+    let id1 = id in
+    let modifiers1 = modifiers in
+    let tile1 = tile in
+    
+    if tile1 = tile2 then begin
+      
+      if modifiers1 <> [] && modifiers2 <> [] then
+        begin
+          
+          if List.length modifiers1 = 2 || List.length modifiers2 = 2
+          then begin 
+            remove_rider red_riders id1;
+            remove_rider blue_riders id2;
+            end
+            
+          else if List.length modifiers1 = 1 
+            && List.length modifiers2 = 1 then begin
+            if modifiers1 = modifiers2 then begin
+              remove_rider red_riders id1;
+              remove_rider blue_riders id2;
+              if List.mem tile1 !red_tail then begin
+                remove_tail red_tail tile1;
+                end
+              else if List.mem tile2 !blue_tail then begin
+                remove_tail blue_tail tile2;
+                end
+              else ()
+              end
+              
+            else if List.hd modifiers1 = Invincible then begin
+              remove_rider blue_riders id2; 
+              if List.mem tile1 !red_tail then begin
+                remove_tail red_tail tile1; 
+                end
+              else if List.mem tile2 !blue_tail then begin
+                remove_tail blue_tail tile2; 
+                end
+              end
+              
+            else begin
+              remove_rider red_riders id1; 
+              if List.mem tile1 !red_tail then begin
+                remove_tail red_tail tile1; 
+                end
+              else if List.mem tile2 !blue_tail then begin
+                remove_tail blue_tail tile2; 
+                end
+              end 
+            end
+            
+          else if modifiers1 = [] then begin
+            remove_rider red_riders id1; 
+            if List.mem Shielded modifiers1 then begin
+              if List.mem tile1 !red_tail || 
+                List.mem tile2 !blue_tail then begin
+                remove_rider blue_riders id2;
+                end
+              else begin 
+                remove_shield rider2 blue_riders;
+                end
+              end
+            else ()
+            end
+            
+          else if modifiers2 = [] then begin
+            remove_rider blue_riders id2; 
+            if List.mem Shielded modifiers1 then begin
+              if List.mem tile1 !red_tail || 
+                  List.mem tile2 !blue_tail then begin
+                  remove_rider red_riders id1
+                  end
+              else begin
+                remove_shield rider1 red_riders;
+                end
+              end
+            else ()
+            end
+            
+          else begin
+            remove_rider red_riders id1; 
+            remove_rider blue_riders id2;
+            end
+          end
+          
+        else ();
+      end  
+      
+  done 
+
+let red_check_item ele = 
+	let {id; orientation; modifiers; tile; invincibility_timer} = !ele in
+	if List.exists (fun elt -> snd (elt) = tile) !item_locations then 
+    (*Change item_locations to tile * modifier*)
+		let modifier = fst (List.find (fun elt -> snd (elt) = tile) 
+      !item_locations) in
+    let count = List.assoc modifier !red_items in
+		red_items := (modifier, count + 1) :: 
+              (List.remove_assoc modifier !red_items);
+		item_locations := List.filter (fun elt -> snd (elt) = tile) 
+      !item_locations;
+		add_update (RemoveItem tile);
+		add_update (UpdateInventory (Red, !red_items));
+	else () 
+  
+let blue_check_item ele = 
+	let {id; orientation; modifiers; tile; invincibility_timer} = !ele in
+	if List.exists (fun elt -> snd (elt) = tile) !item_locations then 
+    (*Change item_locations to tile * modifier*)
+		let modifier = fst (List.find (fun elt -> snd (elt) = tile) 
+      !item_locations) in
+    let count = List.assoc modifier !blue_items in
+		blue_items := (modifier, count + 1) :: 
+              (List.remove_assoc modifier !blue_items);
+		item_locations := List.filter (fun elt -> snd (elt) = tile) 
+      !item_locations;
+		add_update (RemoveItem tile);
+		add_update (UpdateInventory (Blue, !red_items));
+	else ()
+  
+let update_invincibility ele = 
+  (*Check to see invincibility is implemented correctly *) (*Point 6*)
+	let {id; orientation; modifiers; tile; invincibility_timer} = !ele in
+		if invincibility_timer = 1 then begin
+			ele := {id; orientation; modifiers = (remove_at 
+        (find_index Invincible modifiers) modifiers); 
+        tile; invincibility_timer = 0};
+      end
+		else if invincibility_timer <> 0 then begin
+			ele := {id; orientation; modifiers; tile; 
+        invincibility_timer = invincibility_timer - 1};
+      end
+		else () 
+
+
 let handleTime g new_time : game_result option = 
   let (s, m) = g in
   Mutex.lock m;
   let res = check_for_game_over !s new_time in
-  match res with
-   | Some c -> Some (Winner Red)
+  let helper () = match res with
+   | Some c -> ()
    | None -> 
-    
-     let rec remove_at n = function
-	     | [] -> []
-	     | h :: t -> if n = 0 then t else h :: remove_at (n - 1) t in
-     
-			let find_index ele lst =
-				let rec find new_lst i =
-					if (i < List.length new_lst) then
-						(if List.nth new_lst i = ele
-						then i
-						else find new_lst (i + 1))
-					else failwith "Element Not in List" in
-				find lst 0 in
-        
-			let move_red_rider ele =   (* Beginning of Point 2 *)
-				let {id; orientation; modifiers; tile; invincibility_timer} = !ele in
-        let (r, c) = tile in
-        let helper () =
-				  match orientation with 
-				  | East -> ele := {id; orientation; modifiers; 
-              tile = (r, c + 1); invincibility_timer} 
-				  | West -> ele := {id; orientation; modifiers; 
-              tile = (r, c - 1); invincibility_timer}
-				  | North -> ele := {id; orientation; modifiers; 
-              tile = (r - 1, c); invincibility_timer}
-				  | South -> ele := {id; orientation; modifiers; 
-              tile = (r + 1, c); invincibility_timer} in
-        helper ();
-			  red_tail := (r,c) :: !red_tail;
-				let {id; orientation; modifiers; tile; invincibility_timer} = !ele in
-				add_update (UpdateRider (id, orientation, tile));
-				add_update (PlaceTail (id, (r,c), Red)) in
-          
-			let move_blue_rider ele = 
-				let {id; orientation; modifiers; tile; invincibility_timer} = !ele in
-        let (r, c) = tile in
-			  let helper () = 
-          match orientation with 
-	  		  | East -> ele := {id; orientation; modifiers; 
-              tile = (r, c + 1); invincibility_timer} 
-  			  | West -> ele := {id; orientation; modifiers; 
-              tile = (r, c - 1); invincibility_timer}
-				  | North -> ele := {id; orientation; modifiers; 
-              tile = (r - 1, c); invincibility_timer}
-				  | South -> ele := {id; orientation; modifiers; 
-              tile = (r + 1, c); invincibility_timer} in
-        helper ();
-				blue_tail := (r,c) :: !blue_tail;
-				let {id; orientation; modifiers; tile; invincibility_timer} = !ele in
-				add_update (UpdateRider (id, orientation, tile));
-				add_update (PlaceTail (id, (r, c), Blue)) in
-      
-			let remove_red_out_of_bounds ele =  (* Beginning of Point 3 *)
-				let {id; orientation; modifiers; tile; invincibility_timer} = !ele in
-        let (r, c) = tile in
-				if (r >= cNUM_ROWS) || (r < 0) || (c >= cNUM_COLUMNS) || (c < 0)
-				then red_riders := List.remove_assoc id !red_riders;
-				add_update (RemoveRider id) in
-        
-      let remove_blue_out_of_bounds ele =  
-				let {id; orientation; modifiers; tile; invincibility_timer} = !ele in
-        let (r, c) = tile in
-		    if (r >= cNUM_ROWS) || (r < 0) || (c >= cNUM_COLUMNS) || (c < 0)
-	  	  then blue_riders := List.remove_assoc id !blue_riders;
-				add_update (RemoveRider id) in
-        
-      let blue_check_for_tail ele =
-			  let {id; orientation; modifiers; tile; invincibility_timer} = !ele in 
-        (* Check to see if an item can actually be
-			  deleted from an item_list if it isn't a ref *)
-			  if List.mem tile !red_tail then begin 
-          if List.mem Shielded modifiers then begin
-	          blue_tail := remove_at (find_index tile !blue_tail) !blue_tail;
-            add_update (RemoveTail tile);
-		        ele := {id; orientation; 
-              modifiers = remove_at (find_index Shielded modifiers) modifiers; 
-              tile; invincibility_timer};
-            add_update (ModifyRider (id, Shielded, false));
-            end
- 		      else if (List.mem Invincible modifiers) then begin
-            blue_tail := remove_at (find_index tile !blue_tail) !blue_tail;
-            add_update (RemoveTail tile);
-            end
-		      else begin
-            blue_riders := List.remove_assoc id !blue_riders;
-	          add_update (RemoveRider id);
-            end
-          end
-        else () in
-        
-        let red_check_for_tail ele =
-			  let {id; orientation; modifiers; tile; invincibility_timer} = !ele in 
-        (* Check to see if an item can actually be
-			  deleted from an item_list if it isn't a ref *)
-			  if List.mem tile !red_tail then 
-          begin 
-            if List.mem Shielded modifiers then begin
-		          red_tail := remove_at (find_index tile !red_tail) !red_tail;
-              add_update (RemoveTail tile);
-			        ele := {id; orientation; 
-                modifiers = remove_at 
-                  (find_index Shielded modifiers) modifiers;
-                tile; invincibility_timer};
-              add_update (ModifyRider (id, Shielded, false));
-              end
- 			      else if (List.mem Invincible modifiers) then begin
-              red_tail := remove_at (find_index tile !red_tail) !red_tail;
-              add_update (RemoveTail tile);
-              end
-  		      else begin
-              red_riders := List.remove_assoc id !red_riders;
-		          add_update (RemoveRider id);
-              end
-          end
-        else () in
-      
-      let remove_rider rider_list id =
-        rider_list := List.remove_assoc id !rider_list;
-        add_update (RemoveRider id) in
-      
-      let remove_tail tail_list tile =
-        tail_list := List.filter (fun elt -> elt <> tile) !tail_list;
-        add_update (RemoveTail tile) in
-        
-      let remove_shield rider rider_list = 
-        let {id; orientation; modifiers; tile; invincibility_timer} = rider in
-        rider_list := (id, ref {id; orientation; 
-                       modifiers = List.filter 
-                         (fun elt -> elt <> Shielded) modifiers; 
-                       tile; invincibility_timer})
-                       :: (List.remove_assoc id !rider_list);
-        add_update (ModifyRider (id, Shielded, false)) in
-          
-      let red_check_for_collision ele = 
-        let rider1 = !ele in
-        let {id; orientation; modifiers; tile; invincibility_timer} = rider1 in 
-        let id1 = id in
-        let modifiers1 = modifiers in
-        let tile1 = tile in
-        
-        let blue_rider_list = 
-          List.fold_left (fun acc (a, b) -> !b :: acc) [] !blue_riders in 
-        
-        for i = 0 to (List.length blue_rider_list - 1) do
-          let rider2 = List.nth blue_rider_list i in
-          let {id; orientation; modifiers; tile; invincibility_timer}
-            = rider2 in 
-          let id2 = id in
-          let modifiers2 = modifiers in
-          let tile2 = tile in
-            
-          if tile1 = tile2 then begin
-            
-            if modifiers1 <> [] && modifiers2 <> [] then
-              begin
-                
-                if List.length modifiers1 = 2 || List.length modifiers2 = 2
-                then begin 
-                  remove_rider red_riders id1;
-                  remove_rider blue_riders id2;
-                  end
-                  
-                else if List.length modifiers1 = 1 
-                  && List.length modifiers2 = 1 then begin
-                  if modifiers1 = modifiers2 then begin
-                    remove_rider red_riders id1;
-                    remove_rider blue_riders id2;
-                    if List.mem tile1 !red_tail then begin
-                      remove_tail red_tail tile1;
-                      end
-                    else if List.mem tile2 !blue_tail then begin
-                      remove_tail blue_tail tile2;
-                      end
-                    else ()
-                    end
-                    
-                  else if List.hd modifiers1 = Invincible then
-                    begin
-                      remove_rider blue_riders id2; 
-                      if List.mem tile1 !red_tail then begin
-                        remove_tail red_tail tile1; 
-                        end
-                      else if List.mem tile2 !blue_tail then begin
-                        remove_tail blue_tail tile2; 
-                        end
-                    end
-                    
-                  else begin
-                    remove_rider red_riders id1; 
-                    if List.mem tile1 !red_tail then begin
-                      remove_tail red_tail tile1; 
-                      end
-                    else if List.mem tile2 !blue_tail then begin
-                      remove_tail blue_tail tile2; 
-                      end
-                    end 
-                  end
-                  
-                else if modifiers1 = [] then begin
-                  remove_rider red_riders id1; 
-                  if List.mem Shielded modifiers2 then begin
-                    if List.mem tile1 !red_tail || 
-                      List.mem tile2 !blue_tail then begin
-                      remove_rider blue_riders id2;
-                      end
-                    else begin 
-                      remove_shield rider2 blue_riders;
-                      end
-                    end
-                  else ()
-                  end
-                  
-                else if modifiers2 = [] then begin
-                  remove_rider blue_riders id2; 
-                  if List.mem Shielded modifiers1 then begin
-                    if List.mem tile1 !red_tail || 
-                        List.mem tile2 !blue_tail then begin
-                        remove_rider red_riders id1;
-                        end
-                    else begin
-                      remove_shield rider1 red_riders;
-                      end
-                    end
-                  else ()
-                  end
-                  
-                else begin
-                  remove_rider red_riders id1; 
-                  remove_rider blue_riders id2;
-                  end
-                end
-                
-              else ();
-            end  
-            
-        done in
-        
-      let blue_check_for_collision ele = 
-        let rider2 = !ele in
-        let {id; orientation; modifiers; tile; invincibility_timer}
-          = rider2 in 
-        let id2 = id in
-        let modifiers2 = modifiers in
-        let tile2 = tile in
-        
-        let red_rider_list = 
-          List.fold_left (fun acc (a, b) -> !b :: acc) [] !red_riders in
-        
-        for i = 0 to (List.length red_rider_list - 1) do
-          let rider1 = List.nth red_rider_list i in
-          let {id; orientation; modifiers; tile; invincibility_timer}
-            = rider1 in 
-          let id1 = id in
-          let modifiers1 = modifiers in
-          let tile1 = tile in
-          
-          if tile1 = tile2 then begin
-            
-            if modifiers1 <> [] && modifiers2 <> [] then
-              begin
-                
-                if List.length modifiers1 = 2 || List.length modifiers2 = 2
-                then begin 
-                  remove_rider red_riders id1;
-                  remove_rider blue_riders id2;
-                  end
-                  
-                else if List.length modifiers1 = 1 
-                  && List.length modifiers2 = 1 then begin
-                  if modifiers1 = modifiers2 then begin
-                    remove_rider red_riders id1;
-                    remove_rider blue_riders id2;
-                    if List.mem tile1 !red_tail then begin
-                      remove_tail red_tail tile1;
-                      end
-                    else if List.mem tile2 !blue_tail then begin
-                      remove_tail blue_tail tile2;
-                      end
-                    else ()
-                    end
-                    
-                  else if List.hd modifiers1 = Invincible then begin
-                    remove_rider blue_riders id2; 
-                    if List.mem tile1 !red_tail then begin
-                      remove_tail red_tail tile1; 
-                      end
-                    else if List.mem tile2 !blue_tail then begin
-                      remove_tail blue_tail tile2; 
-                      end
-                    end
-                    
-                  else begin
-                    remove_rider red_riders id1; 
-                    if List.mem tile1 !red_tail then begin
-                      remove_tail red_tail tile1; 
-                      end
-                    else if List.mem tile2 !blue_tail then begin
-                      remove_tail blue_tail tile2; 
-                      end
-                    end 
-                  end
-                  
-                else if modifiers1 = [] then begin
-                  remove_rider red_riders id1; 
-                  if List.mem Shielded modifiers1 then begin
-                    if List.mem tile1 !red_tail || 
-                      List.mem tile2 !blue_tail then begin
-                      remove_rider blue_riders id2;
-                      end
-                    else begin 
-                      remove_shield rider2 blue_riders;
-                      end
-                    end
-                  else ()
-                  end
-                  
-                else if modifiers2 = [] then begin
-                  remove_rider blue_riders id2; 
-                  if List.mem Shielded modifiers1 then begin
-                    if List.mem tile1 !red_tail || 
-                        List.mem tile2 !blue_tail then begin
-                        remove_rider red_riders id1
-                        end
-                    else begin
-                      remove_shield rider1 red_riders;
-                      end
-                    end
-                  else ()
-                  end
-                  
-                else begin
-                  remove_rider red_riders id1; 
-                  remove_rider blue_riders id2;
-                  end
-                end
-                
-              else ();
-            end  
-            
-        done in
-      
-      let red_check_item ele = 
-				let {id; orientation; modifiers; tile; invincibility_timer} = !ele in
-				if List.exists (fun elt -> snd (elt) = tile) !item_locations then 
-          (*Change item_locations to tile * modifier*)
-					let modifier = fst (List.find (fun elt -> snd (elt) = tile) 
-            !item_locations) in
-          let count = List.assoc modifier !red_items in
-					red_items := (modifier, count + 1) :: 
-                    (List.remove_assoc modifier !red_items);
-					item_locations := List.filter (fun elt -> snd (elt) = tile) 
-            !item_locations;
-					add_update (RemoveItem tile);
-					add_update (UpdateInventory (Red, !red_items));
-				else () in
-        
-      let blue_check_item ele = 
-				let {id; orientation; modifiers; tile; invincibility_timer} = !ele in
-				if List.exists (fun elt -> snd (elt) = tile) !item_locations then 
-          (*Change item_locations to tile * modifier*)
-					let modifier = fst (List.find (fun elt -> snd (elt) = tile) 
-            !item_locations) in
-          let count = List.assoc modifier !blue_items in
-					blue_items := (modifier, count + 1) :: 
-                    (List.remove_assoc modifier !blue_items);
-					item_locations := List.filter (fun elt -> snd (elt) = tile) 
-            !item_locations;
-					add_update (RemoveItem tile);
-					add_update (UpdateInventory (Blue, !red_items));
-				else () in
-        
-			let update_invincibility ele = 
-        (*Check to see invincibility is implemented correctly *) (*Point 6*)
-				let {id; orientation; modifiers; tile; invincibility_timer} = !ele in
-					if invincibility_timer = 1 then begin
-						ele := {id; orientation; modifiers = (remove_at 
-              (find_index Invincible modifiers) modifiers); 
-              tile; invincibility_timer = 0};
-            end
-					else if invincibility_timer <> 0 then begin
-						ele := {id; orientation; modifiers; tile; 
-              invincibility_timer = invincibility_timer - 1};
-            end
-					else () in 
-      
-			for i = 0 to ((List.length !red_riders) - 1) do
+			(for i = 0 to ((List.length !red_riders) - 1) do
         let (id_list, red_rider_list) = List.split !red_riders in
         move_red_rider (List.nth red_rider_list i);
         red_check_item (List.nth red_rider_list i);
@@ -583,6 +583,7 @@ let handleTime g new_time : game_result option =
 				remove_blue_out_of_bounds (List.nth blue_rider_list i);
         blue_check_for_tail (List.nth blue_rider_list i);
         blue_riders := List.combine id_list blue_rider_list;
-			done;
+			done) in
+  helper ();
   Mutex.unlock m;
   res
