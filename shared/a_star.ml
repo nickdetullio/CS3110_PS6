@@ -62,50 +62,48 @@ struct
 end
 
 let manhattan src dest = 
-		let x_diff = abs((fst src) - (fst dest)) in
-		let y_diff = abs((snd src) - (snd dest)) in
-		x_diff + y_diff
+		let x_diff = abs_float(float_of_int (fst src) -. float_of_int (fst dest)) in
+		let y_diff = abs_float(float_of_int (snd src) -. float_of_int(snd dest)) in
+		x_diff +. y_diff
 
-let euclidian src dest = sqrt(((fst src)-(fst dest))**2 + ((snd src)-(snd dest))**2)
+let euclidian src dest = sqrt((float_of_int (fst src)-. 
+  float_of_int(fst dest))**2.0 +. (float_of_int (snd src)-.
+  float_of_int (snd dest))**2.0)
 
-let a_star ((c1,r1) as source) ((c2,r2) as dest) tail_list heauristic =
+let a_star ((c1,r1) as source) ((c2,r2) as dest) tail_list heuristic =
   let final_list = ref [] in
   
   let rec main_func next_node = 
-	  if  next_node = dest then final_list
-	  else let current = next_node
-	  
+    let min_dist = ref max_float in
+	  if next_node = dest then !final_list
+	  else let current = next_node in
 	  let (col, row) = (fst current, snd current) in
-	  let coord_list = [(col+1,row), (col, row+1), (col+1,row+1), 
-	  (col-1, row), (col, row-1), (col-1, row-1), (col+1, row-1), (col-1, row+1)] in
-	  let dist_helper ele = 
-		heuristic ele dest
-	  let dist_list = List.map helper coord_list in
+	  let coord_list = [(col+1,row); (col, row+1); (col+1,row+1);
+	  (col-1, row); (col, row-1); (col-1, row-1); (col+1, row-1); (col-1, row+1)] in
+	  let dist_helper ele = heuristic ele dest in
+	  let dist_list = List.map dist_helper coord_list in
 	  let min_dist_helper lst =
-		let index = ref 0 in 
-		min_dist := List.nth lst 0;
-		for i = 1 to (List.length lst -1) do
-			let curr_coord = List.nth i coord_list in
-			if (List.mem (curr_coord) tail_list = false
-				&& is_valid_tile (curr_coord snd, curr_coord fst) begin then
-				let next_dist = List.nth lst i in
-				if next_dist < !min_dist then !index := i
-			end
-		done;
+		  let index = ref 0 in 
+		  min_dist := List.nth lst 0;
+		  for i = 1 to (List.length lst -1) do
+			  let curr_coord = List.nth coord_list i in
+			  if (not (List.mem (curr_coord) tail_list)
+				  && is_valid_tile (snd curr_coord, fst curr_coord)) then begin
+				  let next_dist = List.nth lst i in
+				if next_dist < !min_dist then index := i
+			  end
+		  done;
+      !index in 
 	  let coord_index = min_dist_helper dist_list in
-	  final_list := (List.nth coord_list coord_index) :: final_list;
-	  main_func (List.nth coord_list coord_index)
-   main_func source
-  
-  
-  
-  
-
+	  final_list := (List.nth coord_list coord_index) :: !final_list;
+	  main_func (List.nth coord_list coord_index) in
+  main_func source
 
 let src = (2,3)
 let dst = (2,1)
-let tails = [(2,2); (1,2); (0,2); (3,2)]
+let tails = [(2,2); (1,2); (0,2); (3,2)] 
 
 let () =
   let path = a_star src dst tails manhattan in
-  print_endline path
+  print_endline (List.fold_left 
+    (fun acc elt -> string_of_tile elt ^ acc) "" path)
