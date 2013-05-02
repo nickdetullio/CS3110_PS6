@@ -1,6 +1,7 @@
 open Definitions
 open Constants
 open Netgraphics
+open Util
 
 (* id * rider ref list ref *)
 let red_riders = ref []
@@ -26,16 +27,17 @@ let initialize_riders c =
   let cols = cNUM_COLUMNS in
   let spacing = (cNUM_ROWS - init_riders) / (init_riders + 1) in 
   for i = 0 to init_riders - 1 do
+	let p = next_available_id () in
     if c = Red then 
-      let tile =  ((i + 1) * (spacing + 1), 1/10 * cols) in
-      red_riders := (i, ref {id = i; orientation = East; 
+      let tile =  (cols/10, (i + 1) * (spacing + 1)) in
+      red_riders := (i, ref {id = p; orientation = East; 
         modifiers = []; tile = tile; invincibility_timer = 0}) :: !red_riders;
-      add_update (PlaceRider (i, tile, Red));
-    else let tile = ((i + 1) * (spacing + 1), 9/10 * cols) in 
-      blue_riders := (i, ref {id = i; orientation = West; 
+      add_update (PlaceRider (p, tile, Red));
+    else let tile = ((9 * cols)/10, (i + 1) * (spacing + 1)) in 
+      blue_riders := (i, ref {id = p; orientation = West; 
         modifiers = []; tile = tile; invincibility_timer = 0}) :: 
         !blue_riders;
-      add_update (PlaceRider (i, tile, Blue));
+      add_update (PlaceRider (p, tile, Blue));
   done
   
 

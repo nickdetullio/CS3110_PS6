@@ -8,6 +8,7 @@ type game = float ref * Mutex.t
 
 let initGame () : game = 
   let old_time = Unix.gettimeofday() in
+  Netgraphics.send_update InitGraphics;
   initialize_riders Red;
   initialize_riders Blue;
   (ref old_time, Mutex.create())
@@ -19,22 +20,26 @@ let initFieldItems (s, m) : unit =
   for i = 1 to cNUM_INITIAL_FIELD_INVINCIBILITY do
     let r = ref (get_random_num rows) in
     let c = ref (get_random_num cols) in
-    while not (is_valid_tile (!r, !c)) do 
+	let (items, tiles) = List.split !item_locations in
+    while (not (is_valid_tile (!c, !r))) || 
+		(List.mem (!c, !r) tiles) do 
       r := get_random_num rows;
       c := get_random_num cols;
     done;
-    item_locations := (Invincibility, (!r, !c)) :: !item_locations;
-    add_update (PlaceItem (Invincibility, (!r, !c)));
+    item_locations := (Invincibility, (!c, !r)) :: !item_locations;
+    add_update (PlaceItem (Invincibility, (!c, !r)));
   done;
   for i = 1 to cNUM_INITIAL_FIELD_SHIELD do
-     let r = ref (get_random_num rows) in
+    let r = ref (get_random_num rows) in
     let c = ref (get_random_num cols) in
-    while not (is_valid_tile (!r, !c)) do 
+	let (items, tiles) = List.split !item_locations in
+    while (not (is_valid_tile (!c, !r))) || 
+		(List.mem (!c, !r) tiles) do 
       r := get_random_num rows;
       c := get_random_num cols;
     done;
-    item_locations := (Shield , (!r, !c)) :: !item_locations;
-    add_update (PlaceItem (Shield, (!r, !c)));
+    item_locations := (Shield , (!c, !r)) :: !item_locations;
+    add_update (PlaceItem (Shield, (!c, !r)));
   done;
   Mutex.unlock m
 
@@ -186,61 +191,61 @@ let find_index ele lst =
   
 let move_red_rider ele =   (* Beginning of Point 2 *)
 	let {id; orientation; modifiers; tile; invincibility_timer} = !ele in
-  let (r, c) = tile in
+  let (c, r) = tile in
   let helper () =
 	  match orientation with 
 	  | East -> ele := {id; orientation; modifiers; 
-        tile = (r, c + 1); invincibility_timer} 
+        tile = (c + 1, r); invincibility_timer} 
 	  | West -> ele := {id; orientation; modifiers; 
-        tile = (r, c - 1); invincibility_timer}
+        tile = (c - 1, r); invincibility_timer}
 	  | North -> ele := {id; orientation; modifiers; 
-        tile = (r - 1, c); invincibility_timer}
+        tile = (c, r - 1); invincibility_timer}
 	  | South -> ele := {id; orientation; modifiers; 
-        tile = (r + 1, c); invincibility_timer} in
+        tile = (c, r + 1); invincibility_timer} in
   helper ();
-  red_tail := (r,c) :: !red_tail;
+  red_tail := (c, r) :: !red_tail;
 	let {id; orientation; modifiers; tile; invincibility_timer} = !ele in
 	add_update (UpdateRider (id, orientation, tile));
-	add_update (PlaceTail (id, (r,c), Red)) 
+	add_update (PlaceTail (id, (c,r), Red)) 
     
 let move_blue_rider ele = 
 	let {id; orientation; modifiers; tile; invincibility_timer} = !ele in
-  let (r, c) = tile in
+  let (c, r) = tile in
   let helper () = 
     match orientation with 
 	  | East -> ele := {id; orientation; modifiers; 
-        tile = (r, c + 1); invincibility_timer} 
+        tile = (c + 1, r); invincibility_timer} 
 	  | West -> ele := {id; orientation; modifiers; 
-        tile = (r, c - 1); invincibility_timer}
+        tile = (c - 1, r); invincibility_timer}
 	  | North -> ele := {id; orientation; modifiers; 
-        tile = (r - 1, c); invincibility_timer}
+        tile = (c, r - 1); invincibility_timer}
 	  | South -> ele := {id; orientation; modifiers; 
-        tile = (r + 1, c); invincibility_timer} in
+        tile = (c, r + 1); invincibility_timer} in
   helper ();
-	blue_tail := (r,c) :: !blue_tail;
+	blue_tail := (c,r) :: !blue_tail;
 	let {id; orientation; modifiers; tile; invincibility_timer} = !ele in
 	add_update (UpdateRider (id, orientation, tile));
-	add_update (PlaceTail (id, (r, c), Blue)) 
+	add_update (PlaceTail (id, (c, r), Blue)) 
 
 let remove_red_out_of_bounds ele =  (* Beginning of Point 3 *)
 	let {id; orientation; modifiers; tile; invincibility_timer} = !ele in
-  let (r, c) = tile in
+  let (c, r) = tile in
 	if (r >= cNUM_ROWS) || (r < 0) || (c >= cNUM_COLUMNS) || (c < 0)
 	then red_riders := List.remove_assoc id !red_riders;
 	add_update (RemoveRider id) 
   
 let remove_blue_out_of_bounds ele =  
 	let {id; orientation; modifiers; tile; invincibility_timer} = !ele in
-  let (r, c) = tile in
+  let (c, r) = tile in
   if (r >= cNUM_ROWS) || (r < 0) || (c >= cNUM_COLUMNS) || (c < 0)
   then blue_riders := List.remove_assoc id !blue_riders;
 	add_update (RemoveRider id) 
   
-let blue_check_for_tail ele =
+let blue_check_for_tail ele c =
   let {id; orientation; modifiers; tile; invincibility_timer} = !ele in 
   (* Check to see if an item can actually be
   deleted from an item_list if it isn't a ref *)
-  if List.mem tile !red_tail then begin 
+  if List.mem tile !blue_tail then begin 
     if List.mem Shielded modifiers then begin
       blue_tail := remove_at (find_index tile !blue_tail) !blue_tail;
       add_update (RemoveTail tile);
@@ -254,13 +259,16 @@ let blue_check_for_tail ele =
       add_update (RemoveTail tile);
       end
     else begin
-      blue_riders := List.remove_assoc id !blue_riders;
-      add_update (RemoveRider id);
-      end
+	  let blue_check () = if c = Blue 
+	  then begin blue_riders := List.remove_assoc id !blue_riders; end
+	  else begin red_riders := List.remove_assoc id !red_riders; end in
+	  blue_check ();
+	  add_update (RemoveRider id);
+	  end
     end
   else () 
   
-  let red_check_for_tail ele =
+  let red_check_for_tail ele c =
   let {id; orientation; modifiers; tile; invincibility_timer} = !ele in 
   (* Check to see if an item can actually be
   deleted from an item_list if it isn't a ref *)
@@ -280,8 +288,11 @@ let blue_check_for_tail ele =
         add_update (RemoveTail tile);
         end
       else begin
-        red_riders := List.remove_assoc id !red_riders;
-        add_update (RemoveRider id);
+        let red_check () = if c = Blue 
+		then begin blue_riders := List.remove_assoc id !blue_riders; end
+		else begin red_riders := List.remove_assoc id !red_riders; end in
+        red_check ();
+		add_update (RemoveRider id);
         end
     end
   else ()
@@ -517,9 +528,12 @@ let red_check_item ele =
     (*Change item_locations to tile * modifier*)
 		let modifier = fst (List.find (fun elt -> snd (elt) = tile) 
       !item_locations) in
-    let count = List.assoc modifier !red_items in
-		red_items := (modifier, count + 1) :: 
-              (List.remove_assoc modifier !red_items);
+		let helper () = if List.mem_assoc modifier !red_items then
+			let count = List.assoc modifier !red_items in
+				red_items := (modifier, count + 1) :: 
+					  (List.remove_assoc modifier !red_items);
+		else red_items := (modifier, 1) :: !red_items; in
+		helper ();
 		item_locations := List.filter (fun elt -> snd (elt) = tile) 
       !item_locations;
 		add_update (RemoveItem tile);
@@ -532,11 +546,14 @@ let blue_check_item ele =
     (*Change item_locations to tile * modifier*)
 		let modifier = fst (List.find (fun elt -> snd (elt) = tile) 
       !item_locations) in
-    let count = List.assoc modifier !blue_items in
-		blue_items := (modifier, count + 1) :: 
-              (List.remove_assoc modifier !blue_items);
+		let helper () = if List.mem_assoc modifier !blue_items then
+			let count = List.assoc modifier !blue_items in
+				blue_items := (modifier, count + 1) :: 
+					  (List.remove_assoc modifier !blue_items);
+		else blue_items := (modifier, 1) :: !blue_items; in
+		helper ();
 		item_locations := List.filter (fun elt -> snd (elt) = tile) 
-      !item_locations;
+			  !item_locations;
 		add_update (RemoveItem tile);
 		add_update (UpdateInventory (Blue, !red_items));
 	else ()
@@ -566,22 +583,24 @@ let handleTime g new_time : game_result option =
 			(for i = 0 to ((List.length !red_riders) - 1) do
         let (id_list, red_rider_list) = List.split !red_riders in
         move_red_rider (List.nth red_rider_list i);
-        red_check_item (List.nth red_rider_list i);
+		remove_red_out_of_bounds (List.nth red_rider_list i);
+        red_check_for_tail (List.nth red_rider_list i) Red;
+		blue_check_for_tail (List.nth red_rider_list i) Red;
+		red_check_for_collision (List.nth red_rider_list i);
+		red_check_item (List.nth red_rider_list i);
         update_invincibility (List.nth red_rider_list i);
-        red_check_for_collision (List.nth red_rider_list i);
-		    remove_red_out_of_bounds (List.nth red_rider_list i);
-        red_check_for_tail (List.nth red_rider_list i);
         red_riders := List.combine id_list red_rider_list;
 			done;
       
 			for i = 0 to ((List.length !blue_riders) - 1) do
         let (id_list, blue_rider_list) = List.split !blue_riders in
         move_blue_rider (List.nth blue_rider_list i);
+		remove_blue_out_of_bounds (List.nth blue_rider_list i);
+		blue_check_for_tail (List.nth blue_rider_list i) Blue;
+		red_check_for_tail (List.nth blue_rider_list i) Blue;
+		blue_check_for_collision (List.nth blue_rider_list i);
         blue_check_item (List.nth blue_rider_list i);
         update_invincibility (List.nth blue_rider_list i);
-        blue_check_for_collision (List.nth blue_rider_list i);
-				remove_blue_out_of_bounds (List.nth blue_rider_list i);
-        blue_check_for_tail (List.nth blue_rider_list i);
         blue_riders := List.combine id_list blue_rider_list;
 			done) in
   helper ();
