@@ -147,18 +147,18 @@ let handleStatus g status : command =
   let blue_rider_list = helper [] !blue_riders in
   let data =
     match status with
-	  | TeamItemsStatus(c) -> 
+	| TeamItemsStatus(c) -> 
         (match c with 
-        | Red -> TeamItemsData (!red_items)
+        | Red -> TeamItemsData (!red_items) 
         | Blue -> TeamItemsData (!blue_items))
     | FieldItemsStatus -> FieldItemsData (!item_locations)
-	  | TeamStatus(c) -> 
+	| TeamStatus(c) -> 
         (match c with
         | Red -> TeamData (red_rider_list, !red_items)
         | Blue -> TeamData (blue_rider_list, !blue_items))
     | GameStatus -> GameData ((red_rider_list, !red_items), 
         (blue_rider_list, !blue_items), !item_locations) 
-	  | TailStatus -> TailData (List.append !red_tail !blue_tail) 
+	| TailStatus -> TailData (List.append !red_tail !blue_tail) 
   in
   Mutex.unlock m;
   Data(data)
@@ -245,7 +245,7 @@ let blue_check_for_tail ele c =
   let {id; orientation; modifiers; tile; invincibility_timer} = !ele in 
   (* Check to see if an item can actually be
   deleted from an item_list if it isn't a ref *)
-  if List.mem tile !blue_tail then begin 
+  if List.mem tile !blue_tail then begin
     if List.mem Shielded modifiers then begin
       blue_tail := remove_at (find_index tile !blue_tail) !blue_tail;
       add_update (RemoveTail tile);
@@ -259,6 +259,7 @@ let blue_check_for_tail ele c =
        add_update (RemoveTail tile);
        end
     else begin
+
 	    let blue_check () = if c = Blue then begin 
         blue_riders := List.remove_assoc id !blue_riders; end
 	      else begin red_riders := List.remove_assoc id !red_riders; end in
@@ -270,8 +271,6 @@ let blue_check_for_tail ele c =
   
   let red_check_for_tail ele c =
   let {id; orientation; modifiers; tile; invincibility_timer} = !ele in 
-  (* Check to see if an item can actually be
-  deleted from an item_list if it isn't a ref *)
   if List.mem tile !red_tail then 
     begin 
       if List.mem Shielded modifiers then begin
@@ -526,6 +525,7 @@ let red_check_item ele =
     (*Change item_locations to tile * modifier*)
 		let modifier = fst (List.find (fun elt -> snd (elt) = tile) 
       !item_locations) in
+		let _ = print_endline (string_of_item modifier) in
 		let helper () = if List.mem_assoc modifier !red_items then
 			let count = List.assoc modifier !red_items in
 				red_items := (modifier, count + 1) :: 
@@ -578,29 +578,65 @@ let handleTime g new_time : game_result option =
   let helper () = match res with
    | Some c -> ()
    | None -> 
-			(for i = 0 to ((List.length !red_riders) - 1) do
-        let (id_list, red_rider_list) = List.split !red_riders in
-        move_red_rider (List.nth red_rider_list i);
-		    remove_red_out_of_bounds (List.nth red_rider_list i);
-        red_check_for_tail (List.nth red_rider_list i) Red;
-		    blue_check_for_tail (List.nth red_rider_list i) Red;
-		    red_check_for_collision (List.nth red_rider_list i);
-		    red_check_item (List.nth red_rider_list i);
-        update_invincibility (List.nth red_rider_list i);
-        red_riders := List.combine id_list red_rider_list;
-			done;
+
+			(for i = ((List.length !red_riders) - 1) downto 0 do
+				let (id_list, red_rider_list) = List.split !red_riders in
+				move_red_rider (List.nth red_rider_list i);
+			 done;
+			 for i = ((List.length !red_riders) - 1) downto 0 do
+				let (id_list, red_rider_list) = List.split !red_riders in
+				remove_red_out_of_bounds (List.nth red_rider_list i);
+			 done;
+			 for i = ((List.length !red_riders) - 1) downto 0 do
+				let (id_list, red_rider_list) = List.split !red_riders in
+				red_check_for_tail (List.nth red_rider_list i) Red;
+			 done;
+			 for i = ((List.length !red_riders) - 1) downto 0 do
+				let (id_list, red_rider_list) = List.split !red_riders in
+				blue_check_for_tail (List.nth red_rider_list i) Red;
+			 done;
+			 for i = ((List.length !red_riders) - 1) downto 0 do
+				let (id_list, red_rider_list) = List.split !red_riders in
+				red_check_for_collision (List.nth red_rider_list i);
+			 done;
+			 for i = ((List.length !red_riders) - 1) downto 0 do
+				let (id_list, red_rider_list) = List.split !red_riders in
+				red_check_item (List.nth red_rider_list i);
+			 done;
+			 for i = ((List.length !red_riders) - 1) downto 0 do
+				let (id_list, red_rider_list) = List.split !red_riders in
+				update_invincibility (List.nth red_rider_list i);
+			 done;
       
-			for i = 0 to ((List.length !blue_riders) - 1) do
-        let (id_list, blue_rider_list) = List.split !blue_riders in
-        move_blue_rider (List.nth blue_rider_list i);
-		    remove_blue_out_of_bounds (List.nth blue_rider_list i);
-		    blue_check_for_tail (List.nth blue_rider_list i) Blue;
-		    red_check_for_tail (List.nth blue_rider_list i) Blue;
-		    blue_check_for_collision (List.nth blue_rider_list i);
-        blue_check_item (List.nth blue_rider_list i);
-        update_invincibility (List.nth blue_rider_list i);
-        blue_riders := List.combine id_list blue_rider_list;
-			done) in
+			 for i = ((List.length !blue_riders) - 1) downto 0 do
+				let (id_list, blue_rider_list) = List.split !blue_riders in
+				move_blue_rider (List.nth blue_rider_list i);
+			 done;
+			 for i = ((List.length !blue_riders) - 1) downto 0 do
+				let (id_list, blue_rider_list) = List.split !blue_riders in
+				remove_blue_out_of_bounds (List.nth blue_rider_list i);
+			 done;
+			 for i = ((List.length !blue_riders) - 1) downto 0 do
+				let (id_list, blue_rider_list) = List.split !blue_riders in
+			    blue_check_for_tail (List.nth blue_rider_list i) Blue;
+			 done;
+			 for i = ((List.length !blue_riders) - 1) downto 0 do
+				let (id_list, blue_rider_list) = List.split !blue_riders in
+			    red_check_for_tail (List.nth blue_rider_list i) Blue;
+			 done;
+			 for i = ((List.length !blue_riders) - 1) downto 0 do
+				let (id_list, blue_rider_list) = List.split !blue_riders in
+			    blue_check_for_collision (List.nth blue_rider_list i);
+			 done;
+             for i = ((List.length !blue_riders) - 1) downto 0 do
+				let (id_list, blue_rider_list) = List.split !blue_riders in
+			    blue_check_item (List.nth blue_rider_list i);
+			 done;
+			 for i = ((List.length !blue_riders) - 1) downto 0 do
+				let (id_list, blue_rider_list) = List.split !blue_riders in
+			    update_invincibility (List.nth blue_rider_list i);
+			 done;) in
   helper ();
   Mutex.unlock m;
   res
+

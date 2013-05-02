@@ -30,11 +30,11 @@ let initialize_riders c =
 	let p = next_available_id () in
     if c = Red then 
       let tile =  (cols/10, (i + 1) * (spacing + 1)) in
-      red_riders := (i, ref {id = p; orientation = East; 
+      red_riders := (p, ref {id = p; orientation = East; 
         modifiers = []; tile = tile; invincibility_timer = 0}) :: !red_riders;
       add_update (PlaceRider (p, tile, Red));
     else let tile = ((9 * cols)/10, (i + 1) * (spacing + 1)) in 
-      blue_riders := (i, ref {id = p; orientation = West; 
+      blue_riders := (p, ref {id = p; orientation = West; 
         modifiers = []; tile = tile; invincibility_timer = 0}) :: 
         !blue_riders;
       add_update (PlaceRider (p, tile, Blue));
