@@ -498,33 +498,35 @@ let blue_check_for_collision ele =
 let red_check_item ele = 
 	let {id; orientation; modifiers; tile; invincibility_timer} = !ele in
 	if List.exists (fun elt -> snd (elt) = tile) !item_locations then 
-    (*Change item_locations to tile * modifier*)
-		let modifier = fst (List.find (fun elt -> snd (elt) = tile) 
+  (*Change item_locations to tile * modifier*)
+	  let modifier = fst (List.find (fun elt -> snd (elt) = tile) 
       !item_locations) in
-		let _ = print_endline (string_of_item modifier) in
-		let helper () = if List.mem_assoc modifier !red_items then
-			let count = List.assoc modifier !red_items in
-				red_items := (modifier, count + 1) :: 
-					  (List.remove_assoc modifier !red_items);
-		else red_items := (modifier, 1) :: !red_items; in
-		helper ();
-		item_locations := List.filter (fun elt -> snd (elt) = tile) 
-      !item_locations;
-		add_update (RemoveItem tile);
-		add_update (UpdateInventory (Red, !red_items));
+    let _ = print_endline (string_of_item modifier) in
+		let helper () = 
+      if List.mem_assoc modifier !red_items 
+        then let count = List.assoc modifier !red_items in
+	      red_items := (modifier, count + 1) :: 
+          (List.remove_assoc modifier !red_items);
+	    else red_items := (modifier, 1) :: !red_items; in
+  helper ();
+  item_locations := List.filter (fun elt -> snd (elt) = tile) 
+    !item_locations;
+	add_update (RemoveItem tile);
+  add_update (UpdateInventory (Red, !red_items));
 	else () 
   
 let blue_check_item ele = 
 	let {id; orientation; modifiers; tile; invincibility_timer} = !ele in
 	if List.exists (fun elt -> snd (elt) = tile) !item_locations then 
-    (*Change item_locations to tile * modifier*)
+  (*Change item_locations to tile * modifier*)
 		let modifier = fst (List.find (fun elt -> snd (elt) = tile) 
       !item_locations) in
-		let helper () = if List.mem_assoc modifier !blue_items then
-			let count = List.assoc modifier !blue_items in
-				blue_items := (modifier, count + 1) :: 
-					  (List.remove_assoc modifier !blue_items);
-		else blue_items := (modifier, 1) :: !blue_items; in
+		let helper () = 
+      if List.mem_assoc modifier !blue_items 
+        then let count = List.assoc modifier !blue_items in
+		    blue_items := (modifier, count + 1) :: 
+			    (List.remove_assoc modifier !blue_items);
+	    else blue_items := (modifier, 1) :: !blue_items; in
 		helper ();
 		item_locations := List.filter (fun elt -> snd (elt) = tile) 
 			  !item_locations;
