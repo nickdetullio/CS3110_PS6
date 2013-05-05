@@ -525,7 +525,7 @@ let blue_check_item ele =
 		item_locations := List.filter (fun elt -> snd (elt) = tile) 
 			  !item_locations;
 		add_update (RemoveItem tile);
-		add_update (UpdateInventory (Blue, !red_items));
+		add_update (UpdateInventory (Blue, !blue_items));
 	else ()
   
 let update_invincibility ele = 
