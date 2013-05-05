@@ -257,7 +257,11 @@ let check_for_tail ele c =
         add_update (RemoveTail tile);
       end
       else begin
-        let red_check () = 
+        (*I would possibly try putting the add update in both parts of the if statement in red check,
+		since it seems like this statement is executing like it should. Maybe the add rider is just not
+		being executed for some reason. After looking at the rest of the code I don't really see much
+		of a problem with it. Text me if you need anything else. *)
+		let red_check () = 
           if c = Blue then begin 
             print_endline "rider collided with tail";
             blue_riders := List.remove_assoc id !blue_riders; end
