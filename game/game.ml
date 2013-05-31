@@ -224,20 +224,6 @@ let move_blue_rider ele =
 	let {id; orientation; modifiers; tile; invincibility_timer} = !ele in
 	add_update (UpdateRider (id, orientation, tile));
 	add_update (PlaceTail (id, (c, r), Blue)) 
-
-let remove_red_out_of_bounds ele =  (* Beginning of Point 3 *)
-	let {id; orientation; modifiers; tile; invincibility_timer} = !ele in
-  let (c, r) = tile in
-	if (r >= cNUM_ROWS - 1) || (r < 0) || (c >= cNUM_COLUMNS - 1) || (c < 0)
-	then red_riders := List.remove_assoc id !red_riders;
-	add_update (RemoveRider id) 
-  
-let remove_blue_out_of_bounds ele =  
-	let {id; orientation; modifiers; tile; invincibility_timer} = !ele in
-  let (c, r) = tile in
-  if (r >= cNUM_ROWS - 1) || (r < 0) || (c >= cNUM_COLUMNS - 1) || (c < 0)
-  then blue_riders := List.remove_assoc id !blue_riders;
-	add_update (RemoveRider id) 
   
 let check_for_tail ele c =
   let {id; orientation; modifiers; tile; invincibility_timer} = !ele in 
@@ -257,10 +243,6 @@ let check_for_tail ele c =
         add_update (RemoveTail tile);
       end
       else begin
-        (*I would possibly try putting the add update in both parts of the if statement in red check,
-		since it seems like this statement is executing like it should. Maybe the add rider is just not
-		being executed for some reason. After looking at the rest of the code I don't really see much
-		of a problem with it. Text me if you need anything else. *)
 		let red_check () = 
           if c = Blue then begin 
             print_endline "rider collided with tail";
@@ -271,6 +253,24 @@ let check_for_tail ele c =
       end
     end
   else ()
+
+let remove_red_out_of_bounds ele =  (* Beginning of Point 3 *)
+	let {id; orientation; modifiers; tile; invincibility_timer} = !ele in
+  let (c, r) = tile in
+	if (r >= cNUM_ROWS - 1) || (r < 0) || (c >= cNUM_COLUMNS - 1) || (c < 0)
+	  then begin red_riders := List.remove_assoc id !red_riders;
+	  add_update (RemoveRider id) 
+    end
+  else check_for_tail ele Red
+  
+let remove_blue_out_of_bounds ele =  
+	let {id; orientation; modifiers; tile; invincibility_timer} = !ele in
+  let (c, r) = tile in
+  if (r >= cNUM_ROWS - 1) || (r < 0) || (c >= cNUM_COLUMNS - 1) || (c < 0)
+    then begin blue_riders := List.remove_assoc id !blue_riders;
+	  add_update (RemoveRider id);
+    end
+  else check_for_tail ele Blue
 
 let remove_rider rider_list id =
   rider_list := List.remove_assoc id !rider_list;
@@ -305,90 +305,75 @@ let red_check_for_collision ele =
     let id2 = id in
     let modifiers2 = modifiers in
     let tile2 = tile in
-      
     if tile1 = tile2 then begin
-      
-      if modifiers1 <> [] && modifiers2 <> [] then
-        begin
-          
-          if List.length modifiers1 = 2 || List.length modifiers2 = 2
-          then begin 
+      if modifiers1 <> [] && modifiers2 <> [] then begin
+        if List.length modifiers1 = 2 || List.length modifiers2 = 2 then begin 
+          remove_rider red_riders id1;
+          remove_rider blue_riders id2;
+          end  
+        else if List.length modifiers1 = 1 
+          && List.length modifiers2 = 1 then begin
+          if modifiers1 = modifiers2 then begin
             remove_rider red_riders id1;
             remove_rider blue_riders id2;
-            end
-            
-          else if List.length modifiers1 = 1 
-            && List.length modifiers2 = 1 then begin
-            if modifiers1 = modifiers2 then begin
-              remove_rider red_riders id1;
-              remove_rider blue_riders id2;
-              if List.mem tile1 !red_tail then begin
-                remove_tail red_tail tile1;
-                end
-              else if List.mem tile2 !blue_tail then begin
-                remove_tail blue_tail tile2;
-                end
-              else ()
+            if List.mem tile1 !red_tail then begin
+              remove_tail red_tail tile1;
               end
-              
-            else if List.hd modifiers1 = Invincible then
-              begin
-                remove_rider blue_riders id2; 
-                if List.mem tile1 !red_tail then begin
-                  remove_tail red_tail tile1; 
-                  end
-                else if List.mem tile2 !blue_tail then begin
-                  remove_tail blue_tail tile2; 
-                  end
+            else if List.mem tile2 !blue_tail then begin
+              remove_tail blue_tail tile2;
               end
-              
-            else begin
-              remove_rider red_riders id1; 
-              if List.mem tile1 !red_tail then begin
-                remove_tail red_tail tile1; 
-                end
-              else if List.mem tile2 !blue_tail then begin
-                remove_tail blue_tail tile2; 
-                end
-              end 
-            end
-            
-          else if modifiers1 = [] then begin
-            remove_rider red_riders id1; 
-            if List.mem Shielded modifiers2 then begin
-              if List.mem tile1 !red_tail || 
-                List.mem tile2 !blue_tail then begin
-                remove_rider blue_riders id2;
-                end
-              else begin 
-                remove_shield rider2 blue_riders;
-                end
-              end
-            else ()
-            end
-            
-          else if modifiers2 = [] then begin
-            remove_rider blue_riders id2; 
-            if List.mem Shielded modifiers1 then begin
-              if List.mem tile1 !red_tail || 
-                  List.mem tile2 !blue_tail then begin
-                  remove_rider red_riders id1;
-                  end
-              else begin
-                remove_shield rider1 red_riders;
-                end
-              end
-            else ()
-            end
-            
-          else begin
-            remove_rider red_riders id1; 
-            remove_rider blue_riders id2;
             end
           end
-          
-        else ();
-      end   
+        else if List.hd modifiers1 = Invincible then begin
+          remove_rider blue_riders id2; 
+          if List.mem tile1 !red_tail then begin
+            remove_tail red_tail tile1; 
+            end
+          else if List.mem tile2 !blue_tail then begin
+            remove_tail blue_tail tile2; 
+            end
+          end
+        else if List.hd modifiers2 = Invincible then begin
+          remove_rider red_riders id1; 
+          if List.mem tile1 !red_tail then begin
+            remove_tail red_tail tile1; 
+            end
+          else if List.mem tile2 !blue_tail then begin
+            remove_tail blue_tail tile2; 
+            end
+          end
+        else if modifiers1 = [] then begin
+          remove_rider red_riders id1; 
+          if List.mem Shielded modifiers2 then begin
+            if List.mem tile1 !red_tail || 
+              List.mem tile2 !blue_tail then begin
+              remove_shield rider2 blue_riders;
+              end
+            else begin 
+              remove_rider blue_riders id2;
+              end
+            end
+          else ()
+          end
+        else if modifiers2 = [] then begin
+          remove_rider blue_riders id2; 
+          if List.mem Shielded modifiers1 then begin
+            if List.mem tile1 !red_tail || 
+              List.mem tile2 !blue_tail then begin
+              remove_shield rider1 red_riders;
+              end
+            else begin
+              remove_rider red_riders id1;
+              end
+            end
+          else ()
+          end
+        else begin
+          remove_rider red_riders id1; 
+          remove_rider blue_riders id2;
+          end
+        end
+      end
   done 
   
 let blue_check_for_collision ele = 
@@ -404,95 +389,78 @@ let blue_check_for_collision ele =
   
   for i = 0 to (List.length red_rider_list - 1) do
     let rider1 = List.nth red_rider_list i in
-    let {id; orientation; modifiers; tile; invincibility_timer}
-      = rider1 in 
+    let {id; orientation; modifiers; tile; invincibility_timer} = rider1 in 
     let id1 = id in
     let modifiers1 = modifiers in
     let tile1 = tile in
     
     if tile1 = tile2 then begin
-      
-      if modifiers1 <> [] && modifiers2 <> [] then
-        begin
-          
-          if List.length modifiers1 = 2 || List.length modifiers2 = 2
-          then begin 
+      if modifiers1 <> [] && modifiers2 <> [] then begin
+        if List.length modifiers1 = 2 || List.length modifiers2 = 2 then begin 
+          remove_rider red_riders id1;
+          remove_rider blue_riders id2;
+          end
+        else if List.length modifiers1 = 1 
+          && List.length modifiers2 = 1 then begin
+          if modifiers1 = modifiers2 then begin
             remove_rider red_riders id1;
             remove_rider blue_riders id2;
+            if List.mem tile1 !red_tail then begin
+              remove_tail red_tail tile1;
+              end
+            else if List.mem tile2 !blue_tail then begin
+              remove_tail blue_tail tile2;
+              end
             end
-            
-          else if List.length modifiers1 = 1 
-            && List.length modifiers2 = 1 then begin
-            if modifiers1 = modifiers2 then begin
-              remove_rider red_riders id1;
+          end            
+        else if List.hd modifiers1 = Invincible then begin
+          remove_rider blue_riders id2; 
+          if List.mem tile1 !red_tail then begin
+            remove_tail red_tail tile1; 
+            end
+          else if List.mem tile2 !blue_tail then begin
+            remove_tail blue_tail tile2; 
+            end  
+          end
+        else if List.hd modifiers2 = Invincible then begin
+          remove_rider red_riders id1; 
+          if List.mem tile1 !red_tail then begin
+            remove_tail red_tail tile1; 
+            end
+          else if List.mem tile2 !blue_tail then begin
+            remove_tail blue_tail tile2; 
+            end  
+          end
+        else if modifiers1 = [] then begin
+          remove_rider red_riders id1; 
+          if List.mem Shielded modifiers1 then begin
+            if List.mem tile1 !red_tail || 
+              List.mem tile2 !blue_tail then begin
               remove_rider blue_riders id2;
-              if List.mem tile1 !red_tail then begin
-                remove_tail red_tail tile1;
-                end
-              else if List.mem tile2 !blue_tail then begin
-                remove_tail blue_tail tile2;
-                end
-              else ()
               end
-              
-            else if List.hd modifiers1 = Invincible then begin
-              remove_rider blue_riders id2; 
-              if List.mem tile1 !red_tail then begin
-                remove_tail red_tail tile1; 
-                end
-              else if List.mem tile2 !blue_tail then begin
-                remove_tail blue_tail tile2; 
-                end
+            else begin 
+              remove_shield rider2 blue_riders;
               end
-              
-            else begin
-              remove_rider red_riders id1; 
-              if List.mem tile1 !red_tail then begin
-                remove_tail red_tail tile1; 
-                end
-              else if List.mem tile2 !blue_tail then begin
-                remove_tail blue_tail tile2; 
-                end
-              end 
-            end
-            
-          else if modifiers1 = [] then begin
-            remove_rider red_riders id1; 
-            if List.mem Shielded modifiers1 then begin
-              if List.mem tile1 !red_tail || 
-                List.mem tile2 !blue_tail then begin
-                remove_rider blue_riders id2;
-                end
-              else begin 
-                remove_shield rider2 blue_riders;
-                end
-              end
-            else ()
-            end
-            
-          else if modifiers2 = [] then begin
-            remove_rider blue_riders id2; 
-            if List.mem Shielded modifiers1 then begin
-              if List.mem tile1 !red_tail || 
-                  List.mem tile2 !blue_tail then begin
-                  remove_rider red_riders id1
-                  end
-              else begin
-                remove_shield rider1 red_riders;
-                end
-              end
-            else ()
-            end
-            
-          else begin
-            remove_rider red_riders id1; 
-            remove_rider blue_riders id2;
             end
           end
-          
-        else ();
-      end  
-      
+        else if modifiers2 = [] then begin
+          remove_rider blue_riders id2; 
+          if List.mem Shielded modifiers1 then begin
+            if List.mem tile1 !red_tail || 
+              List.mem tile2 !blue_tail then begin
+              remove_rider red_riders id1
+              end
+            else begin
+              remove_shield rider1 red_riders;
+              end
+            end
+          end
+        else begin
+          remove_rider red_riders id1; 
+          remove_rider blue_riders id2;
+          end
+        end
+      end 
   done 
 
 let red_check_item ele = 
@@ -521,6 +489,7 @@ let blue_check_item ele =
   (*Change item_locations to tile * modifier*)
 		let modifier = fst (List.find (fun elt -> snd (elt) = tile) 
       !item_locations) in
+    let _ = print_endline (string_of_item modifier) in
 		let helper () = 
       if List.mem_assoc modifier !blue_items 
         then let count = List.assoc modifier !blue_items in
@@ -528,8 +497,8 @@ let blue_check_item ele =
 			    (List.remove_assoc modifier !blue_items);
 	    else blue_items := (modifier, 1) :: !blue_items; in
 		helper ();
-		item_locations := List.filter (fun elt -> snd (elt) = tile) 
-			  !item_locations;
+		item_locations := List.filter (fun elt -> snd (elt) = tile)
+      !item_locations;
 		add_update (RemoveItem tile);
 		add_update (UpdateInventory (Blue, !blue_items));
 	else ()
@@ -557,6 +526,14 @@ let handleTime g new_time : game_result option =
    | None -> 
 
 			(for i = ((List.length !red_riders) - 1) downto 0 do
+         let (id_list, red_rider_list) = List.split !red_riders in
+				 move_red_rider (List.nth red_rider_list i);
+			 done;
+       for i = ((List.length !blue_riders) - 1) downto 0 do
+         let (id_list, blue_rider_list) = List.split !blue_riders in
+				 move_blue_rider (List.nth blue_rider_list i);
+			 done;) in
+       for i = ((List.length !red_riders) - 1) downto 0 do
 			   let (id_list, red_rider_list) = List.split !red_riders in
 				 remove_red_out_of_bounds (List.nth red_rider_list i);
 			 done;
@@ -571,14 +548,6 @@ let handleTime g new_time : game_result option =
        for i = ((List.length !blue_riders) - 1) downto 0 do
          let (id_list, blue_rider_list) = List.split !blue_riders in
 			   blue_check_for_collision (List.nth blue_rider_list i);
-			 done;
-       for i = ((List.length !red_riders) - 1) downto 0 do
-				 let (id_list, red_rider_list) = List.split !red_riders in
-				 check_for_tail (List.nth red_rider_list i) Red;
-			 done;
-       for i = ((List.length !blue_riders) - 1) downto 0 do
-         let (id_list, blue_rider_list) = List.split !blue_riders in
-			   check_for_tail (List.nth blue_rider_list i) Blue;
 			 done;
 			 for i = ((List.length !red_riders) - 1) downto 0 do
 			   let (id_list, red_rider_list) = List.split !red_riders in
@@ -596,14 +565,6 @@ let handleTime g new_time : game_result option =
          let (id_list, blue_rider_list) = List.split !blue_riders in
 			   update_invincibility (List.nth blue_rider_list i);
 			 done;
-       for i = ((List.length !red_riders) - 1) downto 0 do
-         let (id_list, red_rider_list) = List.split !red_riders in
-				 move_red_rider (List.nth red_rider_list i);
-			 done;
-       for i = ((List.length !blue_riders) - 1) downto 0 do
-         let (id_list, blue_rider_list) = List.split !blue_riders in
-				 move_blue_rider (List.nth blue_rider_list i);
-			 done;) in
   helper ();
   Mutex.unlock m;
   res

@@ -71,19 +71,19 @@ let new_orientation rider =
   let tail_status = match get_status (TailStatus) with TailData a -> a
     | _ -> failwith "wrong status from game" in
   let orient_helper () = 
-    if (r >= cNUM_ROWS - 2 && dir = South)
+    if (r >= cNUM_ROWS - 3 && dir = South)
       then if (List.mem (c + 1, r) tail_status) then begin 
         print_endline "turned first_West in new_orient"; West end 
         else begin print_endline "turned second_East in new_orient"; East end
-    else if (c >= cNUM_COLUMNS - 2 && dir = East)
+    else if (c >= cNUM_COLUMNS - 3 && dir = East)
       then if (List.mem (c, r - 1) tail_status) then begin 
         print_endline "turned first_South in new_orient"; South end 
         else begin print_endline "turned second_North in new_orient"; North end
-    else if (c <= 1 && dir = West) 
+    else if (c <= 2 && dir = West) 
       then if (List.mem (c, r + 1) tail_status) then begin 
         print_endline "turned first_North in new_orient"; North end 
         else begin print_endline "turned second_South in new_orient"; South end
-    else if (r <= 1 && dir = North)  
+    else if (r <= 2 && dir = North)  
       then if (List.mem (c - 1, r) tail_status) then begin 
         print_endline "turned first_East in new_orient"; East end 
         else begin print_endline "turned second_West in new_orient"; West end
